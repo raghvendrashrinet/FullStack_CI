@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route, useMatch } from 'react-router-dom'
+import { Routes, Route, useMatch } from 'react-router-dom'
 import { useApi } from './useApi'
 import LoadingSpinner from './LoadingSpinner'
 import ErrorMessage from './ErrorMessage'
@@ -33,14 +33,12 @@ const App = () => {
   }
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<PokemonList pokemonList={pokemonList} />} />
-        <Route path="/pokemon/:name" element={
-          <PokemonPage pokemonList={pokemonList} previous={previous} next={next} />
-        } />
-      </Routes>
-    </Router>
+    <Routes>
+      <Route path="/" element={<PokemonList pokemonList={pokemonList} />} />
+      <Route path="/pokemon/:name" element={
+        <PokemonPage pokemonList={pokemonList} previous={previous} next={next} />
+      } />
+    </Routes>
   )
 }
 
