@@ -8,7 +8,8 @@
     "start-prod": "node app.js",
     "test": "jest",
     "eslint": "eslint './**/*.{js,jsx}'",
-    "build": "webpack --mode production"
+    "build": "webpack --mode production",
+    "test:e2e": "playwright test"
   },
   "repository": {
     "type": "git",
@@ -32,13 +33,19 @@
   },
   "jest": {
     "testEnvironment": "jsdom",
-    "setupFiles": ["<rootDir>/jest.setup.js"]
+    "setupFiles": [
+      "<rootDir>/jest.setup.js"
+    ],
+    "testPathIgnorePatterns": [
+      "e2e-tests"
+    ]
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@babel/plugin-transform-runtime": "^7.29.0",
     "@babel/preset-env": "^7.29.0",
     "@babel/preset-react": "^7.28.5",
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "babel-jest": "^30.3.0",
