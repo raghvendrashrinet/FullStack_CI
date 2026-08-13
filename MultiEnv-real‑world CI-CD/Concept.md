@@ -91,34 +91,26 @@ Tests only (no deploy)
 ```
 ---
 ### 🔎 How a Single Pipeline Handles Multiple Environments
-Step 1: Branch triggers
-feature/* → run tests only (no deploy).
+- Step 1: Branch triggers
+`feature/* `→ run tests only (no deploy).
+`develop` → deploy to staging.
+`main` → deploy to production.
 
-develop → deploy to staging.
-
-main → deploy to production.
-
-Step 2: Environment mapping
+- Step 2: Environment mapping
 GitHub Actions (or Azure DevOps, Jenkins, etc.) defines environments with secrets and rules.
-
 Example:
 
-Environment staging → uses staging DB credentials.
+- Environment staging → uses staging DB credentials.
+- Environment prod → requires manual approval before deployment.
 
-Environment prod → requires manual approval before deployment.
-
-
-
-Step 3: Namespace separation
+- Step 3: Namespace separation
 Same AKS cluster, different namespaces:
-
-staging namespace → QA validation.
-
-prod namespace → live users.
+- staging namespace → QA validation.
+- prod namespace → live users.
 
 ```
                 ┌───────────────┐
-                │   Git Branch   │
+                │   Git Branch  │
                 └───────┬───────┘
                         │
         ┌───────────────┼───────────────┐
@@ -202,31 +194,32 @@ jobs:
 
 ✅ Practical Takeaway
 One pipeline file can handle all environments.
-
-Branch → Environment → Namespace mapping decides where code goes.
-
-Secrets and approvals differ per environment.
+- `Branch → Environment → Namespace` mapping decides where code goes.
+- Secrets and approvals differ per environment.
 
 This ensures consistency: same pipeline logic, different targets.
 
-👉 In real companies, this pattern is standard: developers push to develop → staging namespace; QA validates; merge to main → production namespace.
+> [!NOTE]
+> 👉 In real companies, this pattern is standard: developers push to develop → staging namespace; QA validates; merge to main → production namespace.
 
 
 ---
 
-Perfect — let’s build a full CI/CD pipeline that covers the entire flow: build → push image to ACR → deploy to AKS, with staging and production environments separated by branch and namespace.
+##### let’s build a full CI/CD pipeline that covers the entire flow:
+`build → push image to ACR → deploy to AKS, with staging and production environments separated by branch and namespace.`
 
-📊 ASCII Flow
-Code
+
+```Code
 Developer Push
    │
    ├── feature/*  → CI only (tests)
    ├── develop    → Deploy to Staging (namespace: staging)
    └── main       → Deploy to Production (namespace: prod)
-🛠 GitHub Actions Workflow Example
+```
+#### 🛠 GitHub Actions Workflow Example
 Save this as .github/workflows/ci-cd.yml:
 
-yaml
+```yaml
 name: CI/CD Pipeline
 
 on:
@@ -322,22 +315,15 @@ jobs:
         namespace: prod
         images: |
           ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-🔎 Real‑World Running Example
-Developer pushes code to develop.
-
-Pipeline builds Docker image → pushes to ACR → deploys to AKS staging namespace.
-
-QA tests staging.
-
+```
+ 🔎 Real‑World Running Example
+1. Developer pushes code to develop.
+   * Pipeline builds Docker image → pushes to ACR → deploys to AKS staging namespace.
+   * QA tests staging.
 Once approved, code is merged to main.
 
-Pipeline runs again → deploys to AKS prod namespace with same image.
-
-✅ Practical Takeaway
-One pipeline file handles all environments.
-
-Branch → Environment → Namespace mapping controls deployment.
-
-Secrets differ per environment (DB, API keys).
-
-Images are versioned by commit SHA, ensuring traceability.
+2. Pipeline runs again → deploys to `AKS prod namespace` with same image.  
+   * One pipeline file handles all environments.
+     - `Branch → Environment → Namespace mapping controls deployment.`
+   * Secrets differ per environment (DB, API keys).
+   * Images are versioned by commit SHA, ensuring traceability.
