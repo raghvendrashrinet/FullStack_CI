@@ -128,6 +128,18 @@ Same AKS cluster, different namespaces:
 ```
 
 ---
+##### unified workflow YAML file for Prod/Staging/Tests
+keep everything inside a single, unified workflow YAML file (or use reusable templates)
+
+#### How different env pipe;ine gets triggers
+- a single pipeline file manages the end-to-end lifecycle based on `triggers`, `conditional logic (if)`, and `environments`
+
+1. **Feature push/Pull Request** $\rightarrow$ Triggers `build / unit-tests jobs` only.
+2. **Merge to develop** $\rightarrow$ Triggers build $\rightarrow$ `deploy-staging` (into the `staging Kubernetes namespace`).
+3. `Merge to main `$\rightarrow$ Triggers` build` $\rightarrow$ `deploy-prod` (into the `prod Kubernetes namespace`) with mandatory approval gates.  \
+   
+   **Prod and other env deployment are 95% identical ,only target env,secret group and ns change** 
+  
 ### 🛠 Real‑World Example Workflow (GitHub Actions)
 ```yaml
 name: CI/CD Pipeline
@@ -139,7 +151,7 @@ on:
       - develop
       - 'feature/*'
 
-jobs:
+jobs: ## multi stage pipeline
   build:
     runs-on: ubuntu-latest
     steps:
