@@ -1,3 +1,5 @@
+## Real world Multi Environment Workflow(pipeline),with kubectl and kustomize both implementations
+
 ### environment, branch, and namespace
 1. Branch (Git)
  - A branch in Git represents a line of development.
@@ -180,7 +182,7 @@ jobs: ## multi stage pipeline
         manifests: k8s/
         namespace: staging
 
-  deploy-prod:
+  deploy-prod: # approval gate setting is done at hte repo level ,ref below doc
     if: github.ref == 'refs/heads/main'
     environment: production
     runs-on: ubuntu-latest
@@ -213,7 +215,15 @@ This ensures consistency: same pipeline logic, different targets.
 
 > [!NOTE]
 > 👉 In real companies, this pattern is standard: developers push to develop → staging namespace; QA validates; merge to main → production namespace.
+---
+#### How to Configure Approval Gates in Platforms
+GitHub Actions:
+- Go to Settings > Environments. --> Create `production` environment
+- Check `Required reviewers` and add the specific users or teams
+- When pipeline runs deploy-prod with environment,automatically pauses the run and notifies the approvers.
 
+AzureDevops  
+ - Pipelines > Environments > Select the production environmen > Click Approvals and checks $\rightarrow$ Approvals> Add approvers
 
 ---
 
@@ -339,3 +349,143 @@ Once approved, code is merged to main.
      - `Branch → Environment → Namespace mapping controls deployment.`
    * Secrets differ per environment (DB, API keys).
    * Images are versioned by commit SHA, ensuring traceability.
+
+
+---
+##  Using kustomize for the multi environment 
+### Kustomize setup
+```
+k8s/
+├── base/
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   └── kustomization.yaml
+└── overlays/
+    ├── staging/
+    │   ├── kustomization.yaml
+    │   └── patch-replicas.yaml   (optional: environment specific overrides)
+    └── prod/
+        ├── kustomization.yaml
+        └── patch-replicas.yaml
+```
+
+#### 1. Base Configuration (k8s/base/)
+`k8s/base/deployment.yaml`
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+        - name: myapp-container
+          image: mycontainerregistry.azurecr.io/myapp:latest
+          ports:
+            - containerPort: 80
+```
+`k8s/base/service.yaml`
+```yaml
+k8s/base/service.yaml
+```
+`k8s/base/kustomization.yaml`
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - service.yaml
+```
+#### 2. Staging Overlay (k8s/overlays/staging/)
+`k8s/overlays/staging/kustomization.yaml`
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: staging
+
+resources:
+  - ../../base
+
+# Placeholder image definition to be updated by CI/CD
+images:
+  - name: mycontainerregistry.azurecr.io/myapp
+    newName: mycontainerregistry.azurecr.io/myapp
+    newTag: latest
+```
+#### 3. Production Overlay (k8s/overlays/prod/)
+`k8s/overlays/prod/kustomization.yaml`
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prod
+
+resources:
+  - ../../base
+
+# Replicas patch or production specific tweaks
+patches:
+  - target:
+      kind: Deployment
+      name: myapp-deployment
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+
+images:
+  - name: mycontainerregistry.azurecr.io/myapp
+    newName: mycontainerregistry.azurecr.io/myapp
+    newTag: latest
+```
+
+#### 4. How to Update Your Workflow to Use Kustomize
+`Updated deploy-staging step:`
+```yaml
+- name: Update Staging Image Tag
+      run: |
+        cd k8s/overlays/staging
+        kustomize edit set image mycontainerregistry.azurecr.io/myapp=${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+
+    - name: Build Manifests
+      run: |
+        kustomize build k8s/overlays/staging > staging-manifests.yaml
+
+    - name: Deploy to Staging
+      uses: azure/k8s-deploy@v4
+      with:
+        manifests: staging-manifests.yaml
+        namespace: staging
+```
+
+`Updated deploy-prod step:`
+```yaml
+- name: Update Production Image Tag
+      run: |
+        cd k8s/overlays/prod
+        kustomize edit set image mycontainerregistry.azurecr.io/myapp=${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+
+    - name: Build Manifests
+      run: |
+        kustomize build k8s/overlays/prod > prod-manifests.yaml
+
+    - name: Deploy to Production
+      uses: azure/k8s-deploy@v4
+      with:
+        manifests: prod-manifests.yaml
+        namespace: prod
+```
+
+
+
+
